@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Agentes Ômega",
+  "description": "Um painel interativo para gerenciamento de personagens e mapas do RPG TEMOR, permitindo controle de status (Vida, Sanidade, Energia) e visualização tática para o mestre e jogadores.",
+  "requestFramePermissions": []
+}
