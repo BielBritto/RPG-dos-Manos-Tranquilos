@@ -19,8 +19,8 @@ const MapView: React.FC<MapViewProps> = ({ currentMap, allMaps, isMaster, onSele
         </div>
         {isMaster && (
           <div className="flex flex-col items-end gap-2">
-            <span className="text-[9px] font-bold text-temor-gold uppercase tracking-widest">Painel do Mestre</span>
-            <div className="flex gap-2">
+            <span className="text-[9px] font-bold text-temor-gold uppercase tracking-widest">CONTROLE DE MAPAS</span>
+            <div className="flex gap-2 flex-wrap justify-end">
               {allMaps.map(m => (
                 <button
                   key={m.id}
@@ -43,20 +43,19 @@ const MapView: React.FC<MapViewProps> = ({ currentMap, allMaps, isMaster, onSele
         />
         <div className="absolute inset-0 pointer-events-none border-[20px] border-slate-950/20" />
         
-        {/* Animated indicators based on map */}
         <div className="absolute top-1/2 left-1/2 w-4 h-4 bg-temor-crimson rounded-full animate-ping" />
         <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-temor-crimson rounded-full border border-white" />
 
         <div className="absolute bottom-8 right-8 bg-slate-950/80 p-4 border border-temor-gold/50 rounded backdrop-blur-sm max-w-xs">
-          <h3 className="text-sm font-cinzel font-bold text-temor-gold mb-1 tracking-widest">STATUS DA REGIÃO</h3>
+          <h3 className="text-sm font-cinzel font-bold text-temor-gold mb-1 tracking-widest">SITUAÇÃO TÁTICA</h3>
           <p className="text-[10px] text-slate-300 uppercase leading-relaxed font-mono">
             {currentMap.description}
           </p>
         </div>
 
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          <div className="absolute top-4 left-4 text-[10px] font-mono text-temor-gold opacity-50">LOCAL: {currentMap.name.toUpperCase()}</div>
-          <div className="absolute bottom-4 left-4 text-[10px] font-mono text-temor-gold opacity-50">MODO: {isMaster ? 'DIRETOR' : 'OPERACIONAL'}</div>
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none p-4">
+          <div className="text-[10px] font-mono text-temor-gold opacity-50">CANAL: ÔMEGA-TAC</div>
+          <div className="text-[10px] font-mono text-temor-gold opacity-50">ZONA: {currentMap.name.toUpperCase()}</div>
         </div>
       </div>
     </div>

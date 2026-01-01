@@ -18,126 +18,94 @@ const DiceChat: React.FC<DiceChatProps> = ({ currentUsername, messages, onSendMe
     }
   }, [messages]);
 
-  const rollDice = (formula: string) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
     const regex = /^(\d*)d(\d+)([\+\-]\d+)?$/i;
-    const match = formula.trim().match(regex);
+    const match = input.trim().match(regex);
 
     if (!match) {
-      alert("Formato inválido! Use algo como 1d20+2 ou 2d6");
+      alert("Use o formato: 1d20 ou 2d6+2");
       return;
     }
 
     const count = parseInt(match[1]) || 1;
     const sides = parseInt(match[2]);
     const bonus = match[3] ? parseInt(match[3]) : 0;
-
-    const rolls: number[] = [];
-    for (let i = 0; i < count; i++) {
-      rolls.push(Math.floor(Math.random() * sides) + 1);
-    }
-
+    const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
     const total = rolls.reduce((a, b) => a + b, 0) + bonus;
 
-    const isCriticalSuccess = sides === 20 && rolls.includes(20);
-    const isCriticalFailure = sides === 20 && rolls.includes(1);
-
-    const newMessage: ChatMessage = {
+    onSendMessage({
       id: Math.random().toString(36).substr(2, 9),
       sender: currentUsername,
-      formula: formula.toUpperCase(),
+      formula: input.toUpperCase(),
       rolls,
       bonus,
       total,
       timestamp: new Date(),
-      isCriticalSuccess,
-      isCriticalFailure
-    };
-
-    onSendMessage(newMessage);
+      isCriticalSuccess: sides === 20 && rolls.includes(20),
+      isCriticalFailure: sides === 20 && rolls.includes(1)
+    });
     setInput('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    rollDice(input);
-  };
-
   return (
-    <div className="flex flex-col h-full bg-slate-900 border-l border-temor-gold/30 shadow-2xl">
-      <div className="p-4 border-b border-slate-800 bg-slate-900/50">
-        <h3 className="text-sm font-cinzel font-bold text-temor-gold tracking-widest flex items-center gap-2">
-          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-          CANAL DE ROLAGEM
-        </h3>
+    <div className="flex flex-col h-full bg-slate-950 border-l border-temor-gold/20 shadow-2xl">
+      <div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+        <h3 className="text-[10px] font-cinzel font-bold text-temor-gold tracking-widest uppercase">Canal Operacional</h3>
+        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
       </div>
-
-      <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
-      >
+      
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/50 to-slate-950">
         {messages.length === 0 && (
-          <div className="text-center py-10 opacity-30">
-            <p className="text-xs uppercase tracking-tighter">Aguardando rolagens...</p>
+          <div className="h-full flex items-center justify-center">
+            <p className="text-[9px] text-slate-600 uppercase font-black tracking-[0.3em] opacity-30 rotate-90">Sem Atividade</p>
           </div>
         )}
         {messages.map((msg) => (
           <div key={msg.id} className="animate-fadeIn">
             <div className="flex justify-between items-baseline mb-1 px-1">
-              <span className={`text-[9px] font-bold uppercase tracking-widest ${msg.sender === currentUsername ? 'text-temor-gold' : 'text-slate-400'}`}>
-                {msg.sender}
+              <span className={`text-[9px] font-black uppercase tracking-widest ${msg.sender === currentUsername ? 'text-temor-gold' : 'text-slate-500'}`}>
+                {msg.sender === currentUsername ? 'SINAL PRÓPRIO' : msg.sender}
               </span>
-              <span className="text-[8px] text-slate-600">{msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              <span className="text-[7px] text-slate-700 font-mono">
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
             </div>
-            <div className={`p-3 rounded border ${msg.isCriticalSuccess ? 'bg-emerald-950/30 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : msg.isCriticalFailure ? 'bg-red-950/30 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]' : 'bg-slate-800/50 border-slate-700'}`}>
+            <div className={`p-3 rounded-lg border transition-all ${msg.isCriticalSuccess ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : msg.isCriticalFailure ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-slate-800 bg-slate-900/50'}`}>
               <div className="flex justify-between items-center">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-500 font-mono">{msg.formula}</span>
-                  <span className="text-[11px] text-slate-300">
-                    ({msg.rolls.join(' + ')}){msg.bonus !== 0 ? ` ${msg.bonus > 0 ? '+' : ''}${msg.bonus}` : ''}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <div className={`text-2xl font-cinzel font-bold leading-none ${msg.isCriticalSuccess ? 'text-emerald-400' : msg.isCriticalFailure ? 'text-red-500' : 'text-white'}`}>
-                    {msg.total}
+                <div className="space-y-1">
+                  <div className="text-[8px] text-slate-500 font-mono uppercase tracking-tighter">Fórmula: {msg.formula}</div>
+                  <div className="text-[10px] text-slate-400 font-bold bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">
+                    [{msg.rolls.join(' + ')}] {msg.bonus !== 0 ? `${msg.bonus > 0 ? '+' : ''}${msg.bonus}` : ''}
                   </div>
-                  {msg.isCriticalSuccess && <div className="text-[8px] font-bold text-emerald-500 uppercase mt-1">Crítico</div>}
-                  {msg.isCriticalFailure && <div className="text-[8px] font-bold text-red-500 uppercase mt-1">Falha</div>}
+                </div>
+                <div className={`text-3xl font-cinzel font-bold text-right ${msg.isCriticalSuccess ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : msg.isCriticalFailure ? 'text-red-500' : 'text-white'}`}>
+                  {msg.total}
                 </div>
               </div>
+              {msg.isCriticalSuccess && <div className="mt-1 text-center text-[7px] font-black text-emerald-500 uppercase tracking-[0.2em] animate-pulse">Sucesso Automático Detectado</div>}
+              {msg.isCriticalFailure && <div className="mt-1 text-center text-[7px] font-black text-red-500 uppercase tracking-[0.2em] animate-pulse">Falha Crítica Detectada</div>}
             </div>
           </div>
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 bg-slate-950 border-t border-slate-800">
+      <form onSubmit={handleSubmit} className="p-4 bg-slate-900 border-t border-slate-800 space-y-3">
         <div className="relative">
           <input 
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ex: 1d20+2"
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-temor-gold transition-colors font-mono"
+            type="text" value={input} onChange={e => setInput(e.target.value)}
+            placeholder="Comando: 1d20+2"
+            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-xs focus:border-temor-gold outline-none font-mono text-temor-gold shadow-inner"
           />
-          <button 
-            type="submit"
-            className="absolute right-2 top-1.5 p-1 text-temor-gold hover:text-white transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
-            </svg>
+          <button type="submit" className="absolute right-2 top-2 p-1 text-slate-500 hover:text-temor-gold transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
           </button>
         </div>
-        <div className="mt-2 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-          {['1d20', '2d20', '1d20+2', '2d6', '1d4'].map(btn => (
-            <button 
-              key={btn}
-              type="button"
-              onClick={() => setInput(btn)}
-              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-[9px] text-slate-400 rounded border border-slate-700 uppercase whitespace-nowrap"
-            >
-              {btn}
-            </button>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {['1d20', '2d20', '2d6', '1d100'].map(b => (
+            <button key={b} type="button" onClick={() => setInput(b)} className="px-3 py-1 bg-slate-950 text-[8px] font-black text-slate-500 hover:text-temor-gold border border-slate-800 rounded uppercase whitespace-nowrap transition-all">{b}</button>
           ))}
         </div>
       </form>

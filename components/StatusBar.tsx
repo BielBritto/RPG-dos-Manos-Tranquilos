@@ -5,19 +5,22 @@ interface StatusBarProps {
   current: number;
   max: number;
   color: string;
+  isEditable?: boolean;
   onValueChange: (val: number) => void;
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ current, max, color, onValueChange }) => {
+const StatusBar: React.FC<StatusBarProps> = ({ current, max, color, isEditable = true, onValueChange }) => {
   const percentage = Math.min(Math.max((current / max) * 100, 0), 100);
 
   const handleDecrement = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isEditable) return;
     onValueChange(Math.max(current - 1, 0));
   };
 
   const handleIncrement = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isEditable) return;
     onValueChange(Math.min(current + 1, max));
   };
 
@@ -25,7 +28,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ current, max, color, onValueChang
     <div className="flex items-center gap-2 group">
       <button 
         onClick={handleDecrement}
-        className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 flex items-center justify-center font-bold text-xs border border-slate-700 transition-colors"
+        disabled={!isEditable}
+        className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs border transition-colors ${isEditable ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700' : 'bg-slate-900 text-slate-700 border-slate-800 cursor-not-allowed'}`}
       >
         -
       </button>
@@ -44,7 +48,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ current, max, color, onValueChang
 
       <button 
         onClick={handleIncrement}
-        className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 flex items-center justify-center font-bold text-xs border border-slate-700 transition-colors"
+        disabled={!isEditable}
+        className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs border transition-colors ${isEditable ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700' : 'bg-slate-900 text-slate-700 border-slate-800 cursor-not-allowed'}`}
       >
         +
       </button>
