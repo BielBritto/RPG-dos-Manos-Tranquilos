@@ -4,36 +4,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SISTEMA ÔMEGA - RPG</title>
+    <title>TEMOR - Painel RPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-      body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; margin: 0; overflow: hidden; }
-      .font-cinzel { font-family: 'Cinzel', serif; }
-      .bg-temor-crimson { background-color: #7f1d1d; }
-      .text-temor-gold { color: #fbbf24; }
-      .border-temor-gold { border-color: #a16207; }
-      #root { height: 100vh; width: 100vw; }
-      .scrollbar-hide::-webkit-scrollbar { display: none; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0f172a;
+        color: #f8fafc;
+      }
+      .font-cinzel {
+        font-family: 'Cinzel', serif;
+      }
+      .bg-temor-crimson {
+        background-color: #7f1d1d;
+      }
+      .border-temor-gold {
+        border-color: #a16207;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      @keyframes pulse-gold {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      .animate-pulse-gold {
+        animation: pulse-gold 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
     </style>
-    <script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom": "https://esm.sh/react-dom@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "peerjs": "https://esm.sh/peerjs@1.5.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "peerjs": "https://esm.sh/peerjs@1.5.4"
   }
 }
 </script>
-  </head>
+</head>
   <body>
     <div id="root"></div>
-    <!-- No GitHub Pages, o navegador lerá o index.js que contém o código do app -->
-    <script type="module" src="./index.js"></script>
   </body>
 </html>
