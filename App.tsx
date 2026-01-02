@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Character, AppView, ChatMessage, PlayerSession, Campaign, SyncAction, VisualEffectType } from './types';
 import { INITIAL_CHARACTERS, INITIAL_MAPS } from './constants';
@@ -11,14 +10,24 @@ import MasterPanel from './components/MasterPanel';
 import EffectOverlay from './components/EffectOverlay';
 import { Peer, DataConnection } from 'peerjs';
 
-const STORAGE_KEY = 'temor_omega_v6';
+const STORAGE_KEY = 'temor_omega_v9';
 
 const App: React.FC = () => {
   const [activeCampaign, setActiveCampaign] = useState<Campaign>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const p = JSON.parse(saved);
-      return { ...p, chatMessages: p.chatMessages.map((m:any) => ({...m, timestamp: new Date(m.timestamp)})) };
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const p = JSON.parse(saved);
+        return { 
+          ...p, 
+          chatMessages: (p.chatMessages || []).map((m: any) => ({ 
+            ...m, 
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date() 
+          })) 
+        };
+      }
+    } catch (e) {
+      console.error("Erro ao carregar campanha:", e);
     }
     return {
       id: 'main', name: 'Operação Ômega', roomId: '',
@@ -40,7 +49,6 @@ const App: React.FC = () => {
   const connectionsRef = useRef<DataConnection[]>([]);
   const campaignRef = useRef<Campaign>(activeCampaign);
 
-  // Sincroniza o Ref com o State para uso em callbacks de rede
   useEffect(() => {
     campaignRef.current = activeCampaign;
     if (session?.isMaster) {
@@ -54,11 +62,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const masterUpdateState = useCallback((nextCampaign: Campaign) => {
-    setActiveCampaign(nextCampaign);
-    broadcast({ type: 'UPDATE_CAMPAIGN', payload: nextCampaign });
-  }, [broadcast]);
-
   const updateCharacterStatus = useCallback((id: string, field: string, value: any) => {
     const current = campaignRef.current;
     let next: Campaign;
@@ -68,31 +71,36 @@ const App: React.FC = () => {
     } else {
       next = {
         ...current,
-        characters: current.characters.map(c => c.id === id ? { ...c, [field]: value } : c)
+        characters: (current.characters || []).map(c => c.id === id ? { ...c, [field]: value } : c)
       };
     }
 
+    setActiveCampaign(next);
+
     if (session?.isMaster) {
-      masterUpdateState(next);
+      broadcast({ type: 'UPDATE_CAMPAIGN', payload: next });
     } else {
-      // Jogador avisa o mestre
       const masterConn = connectionsRef.current.find(c => c.peer.includes('master'));
       if (masterConn?.open) {
         masterConn.send({ type: 'UPDATE_FIELD', targetId: id, field, value });
       }
-      // Update local imediato (otimista)
-      setActiveCampaign(next);
     }
-  }, [session, masterUpdateState]);
+  }, [session, broadcast]);
 
   const addChatMessage = useCallback((msg: ChatMessage) => {
+    const nextCampaign = { 
+      ...campaignRef.current, 
+      chatMessages: [...(campaignRef.current.chatMessages || []), msg] 
+    };
+    setActiveCampaign(nextCampaign);
+    
     if (session?.isMaster) {
-      masterUpdateState({ ...campaignRef.current, chatMessages: [...campaignRef.current.chatMessages, msg] });
+      broadcast({ type: 'UPDATE_CAMPAIGN', payload: nextCampaign });
     } else {
       const masterConn = connectionsRef.current.find(c => c.peer.includes('master'));
       if (masterConn?.open) masterConn.send({ type: 'CHAT_MESSAGE', payload: msg });
     }
-  }, [session, masterUpdateState]);
+  }, [session, broadcast]);
 
   const handleData = useCallback((data: any) => {
     const action = data as SyncAction;
@@ -109,9 +117,13 @@ const App: React.FC = () => {
       }
     } else {
       if (action.type === 'UPDATE_CAMPAIGN') {
+        const payload = action.payload;
         setActiveCampaign({
-          ...action.payload,
-          chatMessages: action.payload.chatMessages.map((m:any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+          ...payload,
+          chatMessages: (payload.chatMessages || []).map((m: any) => ({ 
+            ...m, 
+            timestamp: new Date(m.timestamp) 
+          }))
         });
       } else if (action.type === 'TRIGGER_VISUAL') {
         setActiveEffect(action.effect);
@@ -160,17 +172,17 @@ const App: React.FC = () => {
   const currentMap = activeCampaign.customMaps.find(m => m.id === activeCampaign.currentMapId) || INITIAL_MAPS[0];
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden font-inter">
+    <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden font-inter animate-fadeIn">
       <EffectOverlay activeEffect={activeEffect} bossEntrance={bossEntrance} onEffectEnd={() => { setActiveEffect(null); setBossEntrance(null); }} />
       
       <header className="flex-none bg-slate-900 border-b border-temor-gold p-4 flex justify-between items-center z-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-temor-crimson border-2 border-temor-gold flex items-center justify-center rounded rotate-45 shadow-[0_0_15px_rgba(127,29,29,0.5)]">
+          <div className="w-10 h-10 bg-temor-crimson border-2 border-temor-gold flex items-center justify-center rounded rotate-45">
             <span className="text-white font-cinzel font-bold text-xl -rotate-45">Ω</span>
           </div>
           <div>
             <h1 className="text-lg font-cinzel font-bold text-temor-gold uppercase tracking-tighter">SISTEMA ÔMEGA: {session.roomId}</h1>
-            <p className="text-[10px] text-slate-500 uppercase font-black">{isConnected ? 'LINK ESTÁVEL' : 'OFFLINE'} | AGENTE: {session.playerName}</p>
+            <p className="text-[10px] text-slate-500 uppercase font-black">{isConnected ? 'LINK ESTÁVEL' : 'OFFLINE'} | {session.playerName}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -214,9 +226,20 @@ const App: React.FC = () => {
       {session.isMaster && (
         <MasterPanel 
           activeCampaign={activeCampaign} 
-          onAddNpc={(npc) => masterUpdateState({...activeCampaign, characters: [...activeCampaign.characters, npc]})}
-          onAddMap={(map) => masterUpdateState({...activeCampaign, customMaps: [...activeCampaign.customMaps, map]})}
-          onImportCampaign={masterUpdateState}
+          onAddNpc={(npc) => {
+            const next = {...activeCampaign, characters: [...activeCampaign.characters, npc]};
+            setActiveCampaign(next);
+            broadcast({ type: 'UPDATE_CAMPAIGN', payload: next });
+          }}
+          onAddMap={(map) => {
+            const next = {...activeCampaign, customMaps: [...activeCampaign.customMaps, map]};
+            setActiveCampaign(next);
+            broadcast({ type: 'UPDATE_CAMPAIGN', payload: next });
+          }}
+          onImportCampaign={(camp) => {
+            setActiveCampaign(camp);
+            broadcast({ type: 'UPDATE_CAMPAIGN', payload: camp });
+          }}
           onTriggerFX={(effect) => { broadcast({type: 'TRIGGER_VISUAL', effect}); setActiveEffect(effect); }}
         />
       )}
