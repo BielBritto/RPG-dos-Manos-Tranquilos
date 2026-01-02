@@ -16,6 +16,7 @@ export interface InventoryItem {
   description?: string;
 }
 
+// Added VestuarioItem interface
 export interface VestuarioItem {
   id: string;
   name: string;
@@ -24,7 +25,7 @@ export interface VestuarioItem {
 
 export interface Skills {
   atletismo: number;
-  conhecimento: number;
+  conhecimento: number; // Changed from conocimiento to conhecimento
   intuicao: number;
   acrobacia: number;
   furtividade: number;
@@ -61,7 +62,7 @@ export interface Character {
   currentEnergia: number;
   imageUrl: string;
   inventoryItems: InventoryItem[];
-  vestuarioItems: VestuarioItem[];
+  vestuarioItems: VestuarioItem[]; // Changed from any[] to VestuarioItem[]
   armas: string;
   armadura: string;
   isNpc?: boolean;
@@ -114,23 +115,17 @@ export interface Campaign {
   characters: Character[];
   chatMessages: ChatMessage[];
   currentMapId: string;
-  currentNpcLayer: number;
   customMaps: MapData[];
   occupiedCharacters: Record<string, string>;
   createdAt: number;
-  lastPlayed: number;
-  masterIsOnline: boolean;
 }
 
-export type VisualEffectType = 'BLOOD_SPLASH' | 'DANGER_ALARM' | 'SANITY_BLUR' | 'BLACKOUT' | 'HEAL_GLOW';
+export type VisualEffectType = 'BLOOD_SPLASH' | 'DANGER_ALARM' | 'SANITY_BLUR' | 'HEAL_GLOW';
 
 export type SyncAction = 
   | { type: 'UPDATE_CAMPAIGN', payload: Campaign }
   | { type: 'CHAT_MESSAGE', payload: ChatMessage }
   | { type: 'HEARTBEAT', playerName: string, characterId: string }
-  | { type: 'UPDATE_CHARACTER_FIELD', characterId: string, field: string, value: any }
-  | { type: 'CHANGE_MAP', mapId: string }
+  | { type: 'UPDATE_FIELD', targetId: string, field: string, value: any }
   | { type: 'TRIGGER_VISUAL', effect: VisualEffectType }
-  | { type: 'BOSS_ENTRANCE', characterId: string }
-  | { type: 'BOSS_ENT_BY_ADD', payload: Character }
-  | { type: 'MASTER_PONG' };
+  | { type: 'BOSS_ENTRANCE', characterId: string };
