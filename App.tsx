@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Character, AppView, ChatMessage, PlayerSession, Campaign, SyncAction, VisualEffectType } from './types';
 import { INITIAL_CHARACTERS, INITIAL_MAPS } from './constants';
@@ -10,24 +11,14 @@ import MasterPanel from './components/MasterPanel';
 import EffectOverlay from './components/EffectOverlay';
 import { Peer, DataConnection } from 'peerjs';
 
-const STORAGE_KEY = 'temor_omega_v9';
+const STORAGE_KEY = 'temor_omega_v6';
 
 const App: React.FC = () => {
   const [activeCampaign, setActiveCampaign] = useState<Campaign>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const p = JSON.parse(saved);
-        return { 
-          ...p, 
-          chatMessages: (p.chatMessages || []).map((m: any) => ({ 
-            ...m, 
-            timestamp: m.timestamp ? new Date(m.timestamp) : new Date() 
-          })) 
-        };
-      }
-    } catch (e) {
-      console.error("Erro ao carregar campanha:", e);
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const p = JSON.parse(saved);
+      return { ...p, chatMessages: p.chatMessages.map((m:any) => ({...m, timestamp: new Date(m.timestamp)})) };
     }
     return {
       id: 'main', name: 'Operação Ômega', roomId: '',
@@ -44,11 +35,15 @@ const App: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [activeEffect, setActiveEffect] = useState<VisualEffectType | null>(null);
   const [bossEntrance, setBossEntrance] = useState<Character | null>(null);
+  
+  // Novo estado para controlar as abas de NPC
+  const [npcTab, setNpcTab] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
 
   const peerRef = useRef<Peer | null>(null);
   const connectionsRef = useRef<DataConnection[]>([]);
   const campaignRef = useRef<Campaign>(activeCampaign);
 
+  // Sincroniza o Ref com o State para uso em callbacks de rede
   useEffect(() => {
     campaignRef.current = activeCampaign;
     if (session?.isMaster) {
@@ -62,6 +57,11 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const masterUpdateState = useCallback((nextCampaign: Campaign) => {
+    setActiveCampaign(nextCampaign);
+    broadcast({ type: 'UPDATE_CAMPAIGN', payload: nextCampaign });
+  }, [broadcast]);
+
   const updateCharacterStatus = useCallback((id: string, field: string, value: any) => {
     const current = campaignRef.current;
     let next: Campaign;
@@ -71,36 +71,31 @@ const App: React.FC = () => {
     } else {
       next = {
         ...current,
-        characters: (current.characters || []).map(c => c.id === id ? { ...c, [field]: value } : c)
+        characters: current.characters.map(c => c.id === id ? { ...c, [field]: value } : c)
       };
     }
 
-    setActiveCampaign(next);
-
     if (session?.isMaster) {
-      broadcast({ type: 'UPDATE_CAMPAIGN', payload: next });
+      masterUpdateState(next);
     } else {
+      // Jogador avisa o mestre
       const masterConn = connectionsRef.current.find(c => c.peer.includes('master'));
       if (masterConn?.open) {
         masterConn.send({ type: 'UPDATE_FIELD', targetId: id, field, value });
       }
+      // Update local imediato (otimista)
+      setActiveCampaign(next);
     }
-  }, [session, broadcast]);
+  }, [session, masterUpdateState]);
 
   const addChatMessage = useCallback((msg: ChatMessage) => {
-    const nextCampaign = { 
-      ...campaignRef.current, 
-      chatMessages: [...(campaignRef.current.chatMessages || []), msg] 
-    };
-    setActiveCampaign(nextCampaign);
-    
     if (session?.isMaster) {
-      broadcast({ type: 'UPDATE_CAMPAIGN', payload: nextCampaign });
+      masterUpdateState({ ...campaignRef.current, chatMessages: [...campaignRef.current.chatMessages, msg] });
     } else {
       const masterConn = connectionsRef.current.find(c => c.peer.includes('master'));
       if (masterConn?.open) masterConn.send({ type: 'CHAT_MESSAGE', payload: msg });
     }
-  }, [session, broadcast]);
+  }, [session, masterUpdateState]);
 
   const handleData = useCallback((data: any) => {
     const action = data as SyncAction;
@@ -117,13 +112,9 @@ const App: React.FC = () => {
       }
     } else {
       if (action.type === 'UPDATE_CAMPAIGN') {
-        const payload = action.payload;
         setActiveCampaign({
-          ...payload,
-          chatMessages: (payload.chatMessages || []).map((m: any) => ({ 
-            ...m, 
-            timestamp: new Date(m.timestamp) 
-          }))
+          ...action.payload,
+          chatMessages: action.payload.chatMessages.map((m:any) => ({ ...m, timestamp: new Date(m.timestamp) }))
         });
       } else if (action.type === 'TRIGGER_VISUAL') {
         setActiveEffect(action.effect);
@@ -170,19 +161,29 @@ const App: React.FC = () => {
   if (!session) return <LandingScreen characters={activeCampaign.characters} occupied={activeCampaign.occupiedCharacters} onStart={setSession} />;
 
   const currentMap = activeCampaign.customMaps.find(m => m.id === activeCampaign.currentMapId) || INITIAL_MAPS[0];
+  
+  // Separation logic:
+  // Agents: Always show if not deleted.
+  // NPCs: Show based on tab selection (Active vs Inactive).
+  const allCharacters = activeCampaign.characters.filter(c => !c.isDeleted);
+  const agentsList = allCharacters.filter(c => !c.isNpc);
+  
+  const npcsList = npcTab === 'ACTIVE' 
+    ? allCharacters.filter(c => c.isNpc && c.isActive)
+    : allCharacters.filter(c => c.isNpc && !c.isActive);
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden font-inter animate-fadeIn">
+    <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden font-inter">
       <EffectOverlay activeEffect={activeEffect} bossEntrance={bossEntrance} onEffectEnd={() => { setActiveEffect(null); setBossEntrance(null); }} />
       
       <header className="flex-none bg-slate-900 border-b border-temor-gold p-4 flex justify-between items-center z-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-temor-crimson border-2 border-temor-gold flex items-center justify-center rounded rotate-45">
+          <div className="w-10 h-10 bg-temor-crimson border-2 border-temor-gold flex items-center justify-center rounded rotate-45 shadow-[0_0_15px_rgba(127,29,29,0.5)]">
             <span className="text-white font-cinzel font-bold text-xl -rotate-45">Ω</span>
           </div>
           <div>
             <h1 className="text-lg font-cinzel font-bold text-temor-gold uppercase tracking-tighter">SISTEMA ÔMEGA: {session.roomId}</h1>
-            <p className="text-[10px] text-slate-500 uppercase font-black">{isConnected ? 'LINK ESTÁVEL' : 'OFFLINE'} | {session.playerName}</p>
+            <p className="text-[10px] text-slate-500 uppercase font-black">{isConnected ? 'LINK ESTÁVEL' : 'OFFLINE'} | AGENTE: {session.playerName}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -195,18 +196,71 @@ const App: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-6 scrollbar-hide">
           {currentView === AppView.Dashboard && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-20">
-              {activeCampaign.characters.filter(c => !c.isDeleted && (c.isActive || session.isMaster)).map(char => (
-                <CharacterCard 
-                  key={char.id} character={char} 
-                  isEditable={session.isMaster || session.characterId === char.id}
-                  isMaster={session.isMaster}
-                  isOccupiedBy={activeCampaign.occupiedCharacters[char.id]}
-                  onSelect={() => { setSelectedCharacterId(char.id); setCurrentView(AppView.CharacterDetail); }}
-                  onUpdateStatus={updateCharacterStatus}
-                  onBossReveal={() => { broadcast({ type: 'BOSS_ENTRANCE', characterId: char.id }); setBossEntrance(char); }}
-                />
-              ))}
+            <div className="flex flex-col gap-12 pb-20">
+              
+              {/* Agents Section - Always Visible */}
+              <div>
+                 <div className="flex items-center gap-4 mb-6 opacity-80">
+                    <div className="w-1 h-4 bg-temor-gold" />
+                    <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Agentes Operacionais</h2>
+                    <div className="h-px flex-1 bg-gradient-to-r from-slate-800 to-transparent" />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                    {agentsList.map(char => (
+                      <CharacterCard 
+                        key={char.id} character={char} 
+                        isEditable={session.isMaster || session.characterId === char.id}
+                        isMaster={session.isMaster}
+                        isOccupiedBy={activeCampaign.occupiedCharacters[char.id]}
+                        onSelect={() => { setSelectedCharacterId(char.id); setCurrentView(AppView.CharacterDetail); }}
+                        onUpdateStatus={updateCharacterStatus}
+                        onBossReveal={() => { broadcast({ type: 'BOSS_ENTRANCE', characterId: char.id }); setBossEntrance(char); }}
+                      />
+                    ))}
+                 </div>
+                 {agentsList.length === 0 && <p className="text-xs text-slate-600 italic mt-4 text-center">Nenhum agente ativo na zona de operação.</p>}
+              </div>
+
+              {/* NPCs Section with Tabs */}
+              {(session.isMaster || npcsList.length > 0) && (
+                <div>
+                   <div className="flex items-center gap-6 mb-6 border-b border-slate-800">
+                      <button 
+                        onClick={() => setNpcTab('ACTIVE')}
+                        className={`pb-2 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${npcTab === 'ACTIVE' ? 'border-red-600 text-red-500' : 'border-transparent text-slate-600 hover:text-slate-400'}`}
+                      >
+                        NPCs Ativos
+                      </button>
+                      <button 
+                        onClick={() => setNpcTab('INACTIVE')}
+                        className={`pb-2 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${npcTab === 'INACTIVE' ? 'border-slate-500 text-slate-400' : 'border-transparent text-slate-600 hover:text-slate-400'}`}
+                      >
+                        Inativos / Abatidos
+                      </button>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                      {npcsList.map(char => (
+                        <CharacterCard 
+                          key={char.id} character={char} 
+                          isEditable={session.isMaster || session.characterId === char.id}
+                          isMaster={session.isMaster}
+                          isOccupiedBy={activeCampaign.occupiedCharacters[char.id]}
+                          onSelect={() => { setSelectedCharacterId(char.id); setCurrentView(AppView.CharacterDetail); }}
+                          onUpdateStatus={updateCharacterStatus}
+                          onBossReveal={() => { broadcast({ type: 'BOSS_ENTRANCE', characterId: char.id }); setBossEntrance(char); }}
+                        />
+                      ))}
+                   </div>
+                   {npcsList.length === 0 && (
+                     <div className="text-center py-8 opacity-40">
+                       <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+                         {npcTab === 'ACTIVE' ? '/// NENHUMA AMEAÇA ATIVA DETECTADA ///' : '/// ARQUIVO MORTO VAZIO ///'}
+                       </p>
+                     </div>
+                   )}
+                </div>
+              )}
             </div>
           )}
           {currentView === AppView.Map && <MapView currentMap={currentMap} allMaps={activeCampaign.customMaps} isMaster={session.isMaster} onSelectMap={(id) => updateCharacterStatus('global', 'currentMapId', id)} />}
@@ -226,21 +280,17 @@ const App: React.FC = () => {
       {session.isMaster && (
         <MasterPanel 
           activeCampaign={activeCampaign} 
-          onAddNpc={(npc) => {
-            const next = {...activeCampaign, characters: [...activeCampaign.characters, npc]};
-            setActiveCampaign(next);
-            broadcast({ type: 'UPDATE_CAMPAIGN', payload: next });
-          }}
-          onAddMap={(map) => {
-            const next = {...activeCampaign, customMaps: [...activeCampaign.customMaps, map]};
-            setActiveCampaign(next);
-            broadcast({ type: 'UPDATE_CAMPAIGN', payload: next });
-          }}
-          onImportCampaign={(camp) => {
-            setActiveCampaign(camp);
-            broadcast({ type: 'UPDATE_CAMPAIGN', payload: camp });
-          }}
+          onAddNpc={(npc) => masterUpdateState({...activeCampaign, characters: [...activeCampaign.characters, npc]})}
+          onAddMap={(map) => masterUpdateState({...activeCampaign, customMaps: [...activeCampaign.customMaps, map]})}
+          onImportCampaign={masterUpdateState}
+          onResetCampaign={() => masterUpdateState({
+             id: 'main', name: 'Operação Ômega', roomId: '',
+             characters: INITIAL_CHARACTERS.map(c => ({ ...c, isActive: true })),
+             chatMessages: [], currentMapId: INITIAL_MAPS[0].id,
+             customMaps: INITIAL_MAPS, occupiedCharacters: {}, createdAt: Date.now()
+          })}
           onTriggerFX={(effect) => { broadcast({type: 'TRIGGER_VISUAL', effect}); setActiveEffect(effect); }}
+          onSystemMessage={addChatMessage}
         />
       )}
     </div>

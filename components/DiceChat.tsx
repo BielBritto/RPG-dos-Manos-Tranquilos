@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 
@@ -49,16 +50,6 @@ const DiceChat: React.FC<DiceChatProps> = ({ currentUsername, messages, onSendMe
     setInput('');
   };
 
-  const renderTime = (ts: any): string => {
-    try {
-      const date = ts instanceof Date ? ts : new Date(ts);
-      if (isNaN(date.getTime())) return "S/D";
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-      return "S/D";
-    }
-  };
-
   return (
     <div className="flex flex-col h-full bg-slate-950 border-l border-temor-gold/20 shadow-2xl">
       <div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
@@ -66,29 +57,36 @@ const DiceChat: React.FC<DiceChatProps> = ({ currentUsername, messages, onSendMe
         <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
       </div>
       
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-slate-950">
-        {(messages || []).map((msg) => (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/50 to-slate-950">
+        {messages.length === 0 && (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-[9px] text-slate-600 uppercase font-black tracking-[0.3em] opacity-30 rotate-90">Sem Atividade</p>
+          </div>
+        )}
+        {messages.map((msg) => (
           <div key={msg.id} className="animate-fadeIn">
             <div className="flex justify-between items-baseline mb-1 px-1">
               <span className={`text-[9px] font-black uppercase tracking-widest ${msg.sender === currentUsername ? 'text-temor-gold' : 'text-slate-500'}`}>
                 {msg.sender === currentUsername ? 'SINAL PRÓPRIO' : msg.sender}
               </span>
               <span className="text-[7px] text-slate-700 font-mono">
-                {renderTime(msg.timestamp)}
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             </div>
-            <div className={`p-3 rounded-lg border transition-all ${msg.isCriticalSuccess ? 'border-emerald-500 bg-emerald-950/20' : msg.isCriticalFailure ? 'border-red-500 bg-red-950/20' : 'border-slate-800 bg-slate-900/50'}`}>
+            <div className={`p-3 rounded-lg border transition-all ${msg.isCriticalSuccess ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : msg.isCriticalFailure ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-slate-800 bg-slate-900/50'}`}>
               <div className="flex justify-between items-center">
                 <div className="space-y-1">
                   <div className="text-[8px] text-slate-500 font-mono uppercase tracking-tighter">Fórmula: {msg.formula}</div>
                   <div className="text-[10px] text-slate-400 font-bold bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800">
-                    [{(msg.rolls || []).join(' + ')}] {msg.bonus !== 0 ? `${msg.bonus > 0 ? '+' : ''}${msg.bonus}` : ''}
+                    [{msg.rolls.join(' + ')}] {msg.bonus !== 0 ? `${msg.bonus > 0 ? '+' : ''}${msg.bonus}` : ''}
                   </div>
                 </div>
-                <div className={`text-3xl font-cinzel font-bold text-right ${msg.isCriticalSuccess ? 'text-emerald-400' : msg.isCriticalFailure ? 'text-red-500' : 'text-white'}`}>
+                <div className={`text-3xl font-cinzel font-bold text-right ${msg.isCriticalSuccess ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : msg.isCriticalFailure ? 'text-red-500' : 'text-white'}`}>
                   {msg.total}
                 </div>
               </div>
+              {msg.isCriticalSuccess && <div className="mt-1 text-center text-[7px] font-black text-emerald-500 uppercase tracking-[0.2em] animate-pulse">Sucesso Automático Detectado</div>}
+              {msg.isCriticalFailure && <div className="mt-1 text-center text-[7px] font-black text-red-500 uppercase tracking-[0.2em] animate-pulse">Falha Crítica Detectada</div>}
             </div>
           </div>
         ))}
@@ -99,11 +97,16 @@ const DiceChat: React.FC<DiceChatProps> = ({ currentUsername, messages, onSendMe
           <input 
             type="text" value={input} onChange={e => setInput(e.target.value)}
             placeholder="Comando: 1d20+2"
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-xs focus:border-temor-gold outline-none font-mono text-temor-gold"
+            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-xs focus:border-temor-gold outline-none font-mono text-temor-gold shadow-inner"
           />
-          <button type="submit" className="absolute right-2 top-2 p-1 text-slate-500 hover:text-temor-gold">
+          <button type="submit" className="absolute right-2 top-2 p-1 text-slate-500 hover:text-temor-gold transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
           </button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {['1d20', '2d20', '2d6', '1d100'].map(b => (
+            <button key={b} type="button" onClick={() => setInput(b)} className="px-3 py-1 bg-slate-950 text-[8px] font-black text-slate-500 hover:text-temor-gold border border-slate-800 rounded uppercase whitespace-nowrap transition-all">{b}</button>
+          ))}
         </div>
       </form>
     </div>

@@ -21,6 +21,7 @@ export interface VestuarioItem {
   id: string;
   name: string;
   weight: number;
+  description?: string;
 }
 
 export interface Skills {
@@ -47,6 +48,8 @@ export interface Character {
   race: string;
   age: number | string;
   class: string; 
+  rank?: string; // Patente/Experiência
+  ability?: string; // Habilidade Especial
   appearance: string;
   history: string;
   talents: string;
