@@ -162,15 +162,18 @@ const App: React.FC = () => {
 
   const currentMap = activeCampaign.customMaps.find(m => m.id === activeCampaign.currentMapId) || INITIAL_MAPS[0];
   
-  // Separation logic: teste
+  // Separation logic:
   // Agents: Always show if not deleted.
   // NPCs: Show based on tab selection (Active vs Inactive).
   const allCharacters = activeCampaign.characters.filter(c => !c.isDeleted);
   const agentsList = allCharacters.filter(c => !c.isNpc);
   
-  const npcsList = npcTab === 'ACTIVE' 
-    ? allCharacters.filter(c => c.isNpc && c.isActive)
-    : allCharacters.filter(c => c.isNpc && !c.isActive);
+  // Separate active and inactive NPCs
+  const activeNpcs = allCharacters.filter(c => c.isNpc && c.isActive);
+  const inactiveNpcs = allCharacters.filter(c => c.isNpc && !c.isActive);
+
+  // Determine current list based on tab
+  const npcsList = npcTab === 'ACTIVE' ? activeNpcs : inactiveNpcs;
 
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden font-inter">
@@ -222,7 +225,7 @@ const App: React.FC = () => {
               </div>
 
               {/* NPCs Section with Tabs */}
-              {(session.isMaster || npcsList.length > 0) && (
+              {(session.isMaster || activeNpcs.length > 0 || inactiveNpcs.length > 0) && (
                 <div>
                    <div className="flex items-center gap-6 mb-6 border-b border-slate-800">
                       <button 
