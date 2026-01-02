@@ -162,7 +162,7 @@ const App: React.FC = () => {
 
   const currentMap = activeCampaign.customMaps.find(m => m.id === activeCampaign.currentMapId) || INITIAL_MAPS[0];
   
-  // Separation logic:
+  // Separation logic: teste
   // Agents: Always show if not deleted.
   // NPCs: Show based on tab selection (Active vs Inactive).
   const allCharacters = activeCampaign.characters.filter(c => !c.isDeleted);
